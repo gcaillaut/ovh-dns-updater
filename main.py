@@ -2,6 +2,7 @@ from tqdm import tqdm
 import ovh
 import requests
 import yaml
+import itertools
 
 def get_ip():
     ip = requests.get('https://api.ipify.org').content.decode('utf8')
@@ -66,6 +67,24 @@ def update_statichosts(cfg, client, zone):
                 for d in record_update:
                     rid = subdomain2id[ipv][d]
                     client.put(f"/domain/zone/{zone}/record/{rid}", subDomain=d, target=ip, ttl=ttl)
+                    
+def make_inadyn_config_content(username, password, hostnames):
+    content = f"""period          = 300
+user-agent      = Mozilla/5.0
+
+provider ovh.com {{
+    username         = {username}
+    password         = {password}
+    hostname         = {{ {", ".join(hostnames)} }}
+}}
+"""
+    return content
+
+def get_all_dynamic_domains(cfg):
+    return list(itertools.chain.from_iterable(
+        (zone if subdomain == "" else f"{subdomain}.{zone}" for subdomain in data["subdomains"])
+        for zone, data in cfg["dynhosts"].items()
+    ))
 
 def main(cfg):
     client = ovh.Client()
@@ -76,7 +95,12 @@ def main(cfg):
         
     for zone in tqdm(cfg["statichosts"], desc="Updating static hosts"):
         update_statichosts(cfg, client, zone)
-    
+        
+    if inadyn_cfg := cfg.get("inadyn", None):
+        with open(inadyn_cfg["output"], "wt", encoding="utf-8") as f:
+            hostnames = get_all_dynamic_domains(cfg)
+            content = make_inadyn_config_content(inadyn_cfg["username"], inadyn_cfg["password"], hostnames)
+            f.write(content)
 
 if __name__ == "__main__":
     import argparse
