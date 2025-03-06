@@ -1,0 +1,18 @@
+dynhosts:
+  example.org:
+    remove_others: false # if true, remove dynhosts in the DNS zone but not configured here
+    subdomains:
+      - "" # this is the base domain, i.e. "example.org"
+      - subdomain # subdomain.example.org
+
+statichosts:
+  example.org:
+    - ipv6: <static ipv6 addr>
+      ttl: 600
+      subdomains:
+        - "" # this is the base domain, i.e. "example.org"
+        - subdomain # subdomain.example.org
+    - ipv6: <other static ipv6 addr>
+      ttl: 600
+      subdomains:
+        - another-subdomain # another-subdomain.example.org
