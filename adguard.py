@@ -11,28 +11,25 @@ class AdguardHomeHost:
         self.session = requests.Session()
         self.session.auth = (username, password)
         
+        self.rewrite_list = {}
         self.sync_rewrite_list()
+        
+    def add_to_rewrite_list(self, domain, target):
+        ipv = ip_version(target)
+        if domain not in self.rewrite_list:
+            self.rewrite_list[domain] = {ipv: target}
+        else:
+            self.rewrite_list[domain][ipv] = target
 
     def sync_rewrite_list(self):
-        self.rewrite_list = self.get_rewrite_list()
-    
-    def get_rewrite_list(self):
         url = f"{self.hostname}/control/rewrite/list"
         r = self.session.get(url).json()
-        
-        res = {}
+        self.rewrite_list = {}
         for x in r:
             domain = x["domain"]
-            addr = x["answer"]
-            ipv = ip_version(addr)
-            
-            if domain not in res:
-                res[domain] = {ipv: addr}
-            else:
-                res[domain][ipv] = addr
-        
-        return res
-    
+            target = x["answer"]
+            self.add_to_rewrite_list(domain, target)
+                
     def create_or_update_rewrite_rule(self, domain, target):
         ipv = ip_version(target)
         func = self.create_rewrite_rule if ipv not in self.rewrite_list.get(domain, {}) else self.update_rewrite_rule
@@ -43,7 +40,7 @@ class AdguardHomeHost:
         headers = {"content-type": "application/json"}
         data = {"domain": domain, "answer": target}
         self.session.post(url, data=json.dumps(data), headers=headers)
-        self.sync_rewrite_list()
+        self.add_to_rewrite_list(domain, target)
         
     def update_rewrite_rule(self, domain, target):
         url = f"{self.hostname}/control/rewrite/update"
@@ -53,4 +50,7 @@ class AdguardHomeHost:
             "target": {"domain": domain, "answer": self.rewrite_list[domain][ipv]},
             "update": {"domain": domain, "answer": target},
         }
-        self.session.put(url, data=json.dumps(data), headers=headers)
+        
+        if data["target"]["answer"] != data["update"]["answer"]:
+            self.session.put(url, data=json.dumps(data), headers=headers)
+            self.add_to_rewrite_list(domain, target)
