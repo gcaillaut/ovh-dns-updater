@@ -16,3 +16,21 @@ statichosts:
       ttl: 600
       subdomains:
         - another-subdomain # another-subdomain.example.org
+
+adguardhome:
+  hostname: "https://adguardhome.example.org"
+  auth:
+    username: username
+    password: password
+  rewrite:
+    example.org:
+      - ipv6: <static ipv6 addr>
+        ipv4: <static ipv4 addr>
+        subdomains:
+          - a
+          - b
+      - ipv6: <other static ipv6 addr>
+        ipv4: <other static ipv4 addr>
+        subdomains:
+          - c
+          - d

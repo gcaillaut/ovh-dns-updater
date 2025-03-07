@@ -4,6 +4,8 @@ import requests
 import yaml
 import itertools
 
+from adguard import AdguardHomeHost
+
 def get_ip():
     ip = requests.get('https://api.ipify.org').content.decode('utf8')
     return ip
@@ -101,6 +103,17 @@ def main(cfg):
             hostnames = get_all_dynamic_domains(cfg)
             content = make_inadyn_config_content(inadyn_cfg["username"], inadyn_cfg["password"], hostnames)
             f.write(content)
+            
+    if adguard_cfg := cfg.get("adguardhome", None):
+        ag = AdguardHomeHost(adguard_cfg["hostname"], adguard_cfg["auth"]["username"], adguard_cfg["auth"]["password"])
+        for zone, data in adguard_cfg["rewrite"].items():
+            for x in data:
+                addr_list = [x[ipv] for ipv in ("ipv4", "ipv6") if ipv in x]
+                for subdomain in x["subdomains"]:
+                    domain = f"{subdomain}.{zone}"
+                    for addr in addr_list:
+                        ag.create_or_update_rewrite_rule(domain, addr)
+                
 
 if __name__ == "__main__":
     import argparse
